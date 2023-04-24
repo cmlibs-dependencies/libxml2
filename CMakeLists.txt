@@ -87,7 +87,16 @@ if(LIBXML2_WITH_ZLIB)
     find_package(ZLIB ${ZLIB_VERSION} QUIET CONFIG)
     if (ZLIB_FOUND)
         set(ZLIB_CONFIG_MODE TRUE)
-        get_target_property(_ZLIB_TYPE z TYPE)
+        if(TARGET z)
+            set(_AVAILABLE_ZLIB_TARGET z)
+        elseif (TARGET zlibstatic)
+            set(_AVAILABLE_ZLIB_TARGET zlibstatic)
+        elseif (TARGET zlib)
+            set(_AVAILABLE_ZLIB_TARGET zlib)
+        else ()
+            message(FATAL_ERROR "Zlib found in config mode but no known ZLIB targets were??")
+        endif ()
+        get_target_property(_ZLIB_TYPE ${_AVAILABLE_ZLIB_TARGET} TYPE)
     else ()
         find_package(ZLIB ${ZLIB_VERSION})
         set(_ZLIB_TYPE UNKNOWN)
@@ -134,7 +143,7 @@ if(Threads_FOUND)
 endif()
 
 if(ZLIB_FOUND)
-    list(APPEND CMAKE_REQUIRED_LIBRARIES zlib)
+    list(APPEND CMAKE_REQUIRED_LIBRARIES ${_AVAILABLE_ZLIB_TARGET})
 endif()
 
 if(MSVC)
@@ -423,9 +432,15 @@ if(LIBXML2_WITH_TRIO)
     list(APPEND LIBXML2_SRCS trio.c triostr.c)
 endif()
 
+if (DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
+    set(BUILD_SHARED_LIBXML2 FALSE)
+else()
+    set(BUILD_SHARED_LIBXML2 TRUE)
+endif()
+
 add_library(LibXml2 ${LIBXML2_HDRS} ${LIBXML2_SRCS})
 
-if(NOT BUILD_SHARED_LIBS)
+if(NOT BUILD_SHARED_LIBXML2)
     target_compile_definitions(LibXml2 INTERFACE LIBXML_STATIC)
     set(XML_CFLAGS "-DLIBXML_STATIC")
 endif()
@@ -492,12 +507,12 @@ if(LIBXML2_WITH_THREADS)
 endif()
 
 if(LIBXML2_WITH_ZLIB)
-    if(_ZLIB_TYPE STREQUAL "STATIC_LIBRARY" AND BUILD_SHARED_LIBS)
+    if(_ZLIB_TYPE STREQUAL "STATIC_LIBRARY" AND BUILD_SHARED_LIBXML2)
         set(ZLIB_LINK_TYPE PRIVATE)
     else()
         set(ZLIB_LINK_TYPE PUBLIC)
     endif()
-    target_link_libraries(LibXml2 ${ZLIB_LINK_TYPE} zlib)
+    target_link_libraries(LibXml2 ${ZLIB_LINK_TYPE} ${_AVAILABLE_ZLIB_TARGET})
     #set(Z_LIBS "-lz")
 endif()
 
@@ -512,7 +527,7 @@ set_target_properties(
 )
 
 if(MSVC)
-    if(BUILD_SHARED_LIBS)
+    if(BUILD_SHARED_LIBXML2)
         set_target_properties(
             LibXml2
             PROPERTIES
@@ -540,7 +555,7 @@ install(
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT runtime
 )
 
-if(MSVC AND BUILD_SHARED_LIBS)
+if(MSVC AND BUILD_SHARED_LIBXML2)
     install(FILES $<TARGET_PDB_FILE:LibXml2> DESTINATION ${CMAKE_INSTALL_BINDIR} CONFIGURATIONS Debug RelWithDebInfo COMPONENT debug)
 endif()
 
@@ -660,7 +675,7 @@ if(LIBXML2_WITH_PYTHON)
         LIBRARY DESTINATION ${LIBXML2_PYTHON_INSTALL_DIR} COMPONENT runtime NAMELINK_COMPONENT development
         RUNTIME DESTINATION ${LIBXML2_PYTHON_INSTALL_DIR} COMPONENT runtime
     )
-    if(MSVC AND BUILD_SHARED_LIBS)
+    if(MSVC AND BUILD_SHARED_LIBXML2)
         install(FILES $<TARGET_PDB_FILE:LibXml2Mod> DESTINATION ${LIBXML2_PYTHON_INSTALL_DIR} CONFIGURATIONS Debug RelWithDebInfo COMPONENT debug)
     endif()
     install(FILES python/drv_libxml2.py DESTINATION ${LIBXML2_PYTHON_INSTALL_DIR} COMPONENT runtime)
@@ -673,31 +688,29 @@ endif()
 #install(DIRECTORY doc/ DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/libxml2 COMPONENT documentation PATTERN Makefile.* EXCLUDE)
 set(EXPORT_DEPENDENCIES_FILE ${CMAKE_CURRENT_BINARY_DIR}/libxml2-exports-dependencies.cmake)
 file(WRITE ${EXPORT_DEPENDENCIES_FILE} 
-    "include(CMakeFindDependencyMacro)\r\n"
-    "set(${PROJECT_NAME}_IMPORT_PREFIX \${_IMPORT_PREFIX})\r\n")
+    "include(CMakeFindDependencyMacro)\n"
+    "set(${PROJECT_NAME}_IMPORT_PREFIX \${_IMPORT_PREFIX})\n")
 if(LIBXML2_WITH_ZLIB)
-    if (TARGET z)
+    if (TARGET ${_AVAILABLE_ZLIB_TARGET})
         if (ZLIB_CONFIG_MODE)
             # Make sure that the ZLIB_DIR is absolute before it gets used in a configuration file for libxml2.
             get_filename_component(_ABS_ZLIB_DIR "${ZLIB_DIR}" ABSOLUTE)
         endif()
     endif ()
-    file(APPEND ${EXPORT_DEPENDENCIES_FILE} "if(LIBXML2_WITH_ZLIB)\r\n")
+    file(APPEND ${EXPORT_DEPENDENCIES_FILE} "if(LIBXML2_WITH_ZLIB)\n")
     if (EXISTS "${_ABS_ZLIB_DIR}")
-        file(APPEND ${EXPORT_DEPENDENCIES_FILE} "    set(ZLIB_DIR \"${_ABS_ZLIB_DIR}\")\r\n")
+        file(APPEND ${EXPORT_DEPENDENCIES_FILE} "    set(ZLIB_DIR \"${_ABS_ZLIB_DIR}\")\n")
         # The find_dependency command doesn't appear to use CONFIG mode of find_package as a backup search mode.
         # This means if we think we have found zlib for this library via configuration files then we force this 
         # for the libxml2 find_dependency command.
         set(_FIND_ZLIB_BY_CONFIG " CONFIG")
     endif ()
-    message(STATUS "BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
-    message(STATUS "ZLIB_LINK_TYPE: ${ZLIB_LINK_TYPE}")
     if(ZLIB_LINK_TYPE STREQUAL "PUBLIC")
-        file(APPEND ${EXPORT_DEPENDENCIES_FILE} "    set(ZLIB_FIND_SYSTEM ${ZLIB_FIND_SYSTEM})\r\nfind_dependency(ZLIB ${ZLIB_VERSION}${_FIND_ZLIB_BY_CONFIG})\r\n")
+        file(APPEND ${EXPORT_DEPENDENCIES_FILE} "    set(ZLIB_FIND_SYSTEM ${ZLIB_FIND_SYSTEM})\nfind_dependency(ZLIB ${ZLIB_VERSION}${_FIND_ZLIB_BY_CONFIG})\n")
     endif ()
-    file(APPEND ${EXPORT_DEPENDENCIES_FILE} "endif()\r\n")
+    file(APPEND ${EXPORT_DEPENDENCIES_FILE} "endif()\n")
 endif()
-file(APPEND ${EXPORT_DEPENDENCIES_FILE} "set(_IMPORT_PREFIX \${${PROJECT_NAME}_IMPORT_PREFIX})\r\n")
+file(APPEND ${EXPORT_DEPENDENCIES_FILE} "set(_IMPORT_PREFIX \${${PROJECT_NAME}_IMPORT_PREFIX})\n")
 
 configure_file(libxml2-config.in.cmake libxml2-config.cmake @ONLY)
 
