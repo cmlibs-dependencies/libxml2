@@ -87,19 +87,22 @@ if(LIBXML2_WITH_ZLIB)
     find_package(ZLIB ${ZLIB_VERSION} QUIET CONFIG)
     if (ZLIB_FOUND)
         set(ZLIB_CONFIG_MODE TRUE)
-        if(TARGET z)
-            set(_AVAILABLE_ZLIB_TARGET z)
-        elseif (TARGET zlibstatic)
-            set(_AVAILABLE_ZLIB_TARGET zlibstatic)
-        elseif (TARGET zlib)
-            set(_AVAILABLE_ZLIB_TARGET zlib)
+        if (BUILD_SHARED_LIBS)
+            set( _TARGET_ORDER zlib zlibstatic ZLIB::ZLIB )
         else ()
-            message(FATAL_ERROR "Zlib found in config mode but no known ZLIB targets were??")
+            set( _TARGET_ORDER zlibstatic zlib ZLIB::ZLIB )
         endif ()
-        get_target_property(_ZLIB_TYPE ${_AVAILABLE_ZLIB_TARGET} TYPE)
+        foreach (_T ${_TARGET_ORDER})
+            if (TARGET ${_T})
+                set(ZLIB_LINK_LIBRARY ${_T})
+                break()
+            endif ()
+        endforeach ()
+        get_target_property(_ZLIB_TYPE ${ZLIB_LINK_LIBRARY} TYPE)
     else ()
         find_package(ZLIB ${ZLIB_VERSION})
         set(_ZLIB_TYPE UNKNOWN)
+        set(ZLIB_LINK_LIBRARY z)
     endif ()
     if (NOT ZLIB_FOUND)
         message(FATAL_ERROR "zlib was NOT found!")
@@ -512,7 +515,7 @@ if(LIBXML2_WITH_ZLIB)
     else()
         set(ZLIB_LINK_TYPE PUBLIC)
     endif()
-    target_link_libraries(LibXml2 ${ZLIB_LINK_TYPE} ${_AVAILABLE_ZLIB_TARGET})
+    target_link_libraries(LibXml2 ${ZLIB_LINK_TYPE} ${ZLIB_LINK_LIBRARY})
     #set(Z_LIBS "-lz")
 endif()
 
@@ -688,29 +691,30 @@ endif()
 #install(DIRECTORY doc/ DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/libxml2 COMPONENT documentation PATTERN Makefile.* EXCLUDE)
 set(EXPORT_DEPENDENCIES_FILE ${CMAKE_CURRENT_BINARY_DIR}/libxml2-exports-dependencies.cmake)
 file(WRITE ${EXPORT_DEPENDENCIES_FILE} 
-    "include(CMakeFindDependencyMacro)\n"
-    "set(${PROJECT_NAME}_IMPORT_PREFIX \${_IMPORT_PREFIX})\n")
+    "include(CMakeFindDependencyMacro)\n\n"
+    "set(${PROJECT_NAME}_IMPORT_PREFIX \${_IMPORT_PREFIX})\n\n")
+if(LIBXML2_WITH_THREADS)
+    file(APPEND ${EXPORT_DEPENDENCIES_FILE} "find_dependency(Threads REQUIRED)\n")
+endif()
 if(LIBXML2_WITH_ZLIB)
-    if (TARGET ${_AVAILABLE_ZLIB_TARGET})
+    if (TARGET ${ZLIB_LINK_LIBRARY})
         if (ZLIB_CONFIG_MODE)
             # Make sure that the ZLIB_DIR is absolute before it gets used in a configuration file for libxml2.
             get_filename_component(_ABS_ZLIB_DIR "${ZLIB_DIR}" ABSOLUTE)
         endif()
     endif ()
-    file(APPEND ${EXPORT_DEPENDENCIES_FILE} "if(LIBXML2_WITH_ZLIB)\n")
     if (EXISTS "${_ABS_ZLIB_DIR}")
-        file(APPEND ${EXPORT_DEPENDENCIES_FILE} "    set(ZLIB_DIR \"${_ABS_ZLIB_DIR}\")\n")
+        file(APPEND ${EXPORT_DEPENDENCIES_FILE} "set(ZLIB_DIR \"${_ABS_ZLIB_DIR}\")\n")
         # The find_dependency command doesn't appear to use CONFIG mode of find_package as a backup search mode.
         # This means if we think we have found zlib for this library via configuration files then we force this 
         # for the libxml2 find_dependency command.
         set(_FIND_ZLIB_BY_CONFIG " CONFIG")
     endif ()
     if(ZLIB_LINK_TYPE STREQUAL "PUBLIC")
-        file(APPEND ${EXPORT_DEPENDENCIES_FILE} "    set(ZLIB_FIND_SYSTEM ${ZLIB_FIND_SYSTEM})\nfind_dependency(ZLIB ${ZLIB_VERSION}${_FIND_ZLIB_BY_CONFIG})\n")
+        file(APPEND ${EXPORT_DEPENDENCIES_FILE} "set(ZLIB_FIND_SYSTEM ${ZLIB_FIND_SYSTEM})\nfind_dependency(ZLIB ${ZLIB_VERSION}${_FIND_ZLIB_BY_CONFIG})\n")
     endif ()
-    file(APPEND ${EXPORT_DEPENDENCIES_FILE} "endif()\n")
 endif()
-file(APPEND ${EXPORT_DEPENDENCIES_FILE} "set(_IMPORT_PREFIX \${${PROJECT_NAME}_IMPORT_PREFIX})\n")
+file(APPEND ${EXPORT_DEPENDENCIES_FILE} "\nset(_IMPORT_PREFIX \${${PROJECT_NAME}_IMPORT_PREFIX})\n")
 
 configure_file(libxml2-config.in.cmake libxml2-config.cmake @ONLY)
 
@@ -729,7 +733,7 @@ endif()
 install(
     EXPORT libxml2-exports
     DESTINATION ${PACKAGE_CONFIG_DIR}
-#   NAMESPACE LibXml2::
+    NAMESPACE LibXml2::
 #   FILE libxml2-config.cmake
     COMPONENT development
 )
