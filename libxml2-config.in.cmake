@@ -7,4 +7,13 @@ set(LIBXML2_WITH_ICU @LIBXML2_WITH_ICU@)
 set(LIBXML2_WITH_LZMA @LIBXML2_WITH_LZMA@)
 set(LIBXML2_WITH_ZLIB @LIBXML2_WITH_ZLIB@)
 
+if(LIBXML2_WITH_ZLIB)
+  find_dependency(ZLIB CONFIG)
+  if (NOT ZLIB_FOUND)
+    find_dependency(ZLIB REQUIRED)
+  endif()
+  list(APPEND LIBXML2_LIBRARIES zlib)
+  list(APPEND LIBXML2_INTERFACE_LINK_LIBRARIES "zlib")
+endif()
+
 include("${CMAKE_CURRENT_LIST_DIR}/libxml2-exports.cmake")
