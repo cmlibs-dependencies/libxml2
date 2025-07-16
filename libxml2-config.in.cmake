@@ -25,3 +25,4 @@ if(LIBXML2_WITH_ZLIB)
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/libxml2-exports.cmake")
+set(LIBXML2_FOUND TRUE)
