@@ -698,7 +698,7 @@ if(LIBXML2_WITH_THREADS)
 endif()
 if(LIBXML2_WITH_ZLIB)
     if(ZLIB_LINK_TYPE STREQUAL "PUBLIC")
-        file(APPEND ${EXPORT_DEPENDENCIES_FILE} "find_dependency(ZLIB ${ZLIB_VERSION} CONFIG)\nfind_dependency(ZLIB ${ZLIB_VERSION} REQUIRED)\n")
+        file(APPEND ${EXPORT_DEPENDENCIES_FILE} "find_dependency(ZLIB ${ZLIB_VERSION} CONFIG)\nif (NOT ZLIB_FOUND)\n  find_dependency(ZLIB ${ZLIB_VERSION} REQUIRED)\nendif()\n")
     endif ()
 endif()
 file(APPEND ${EXPORT_DEPENDENCIES_FILE} "\nset(_IMPORT_PREFIX \${${PROJECT_NAME}_IMPORT_PREFIX})\n")
@@ -734,13 +734,13 @@ install(
 )
 
 write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/libxml2-exports-version.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/libxml2-config-version.cmake
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY ExactVersion
 )
 
 install(
-    FILES ${CMAKE_CURRENT_BINARY_DIR}/libxml2-exports-version.cmake ${EXPORT_DEPENDENCIES_FILE}
+    FILES ${CMAKE_CURRENT_BINARY_DIR}/libxml2-config-version.cmake ${EXPORT_DEPENDENCIES_FILE}
     DESTINATION ${PACKAGE_CONFIG_DIR}
     COMPONENT development
 )
