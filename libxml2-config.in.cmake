@@ -26,3 +26,4 @@ endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/libxml2-exports.cmake")
 set(LibXml2_FOUND TRUE)
+message(STATUS " ----> LibXml2 Found!")
