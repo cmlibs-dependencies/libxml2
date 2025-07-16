@@ -697,21 +697,8 @@ if(LIBXML2_WITH_THREADS)
     file(APPEND ${EXPORT_DEPENDENCIES_FILE} "find_dependency(Threads REQUIRED)\n")
 endif()
 if(LIBXML2_WITH_ZLIB)
-    if (TARGET ${ZLIB_LINK_LIBRARY})
-        if (ZLIB_CONFIG_MODE)
-            # Make sure that the ZLIB_DIR is absolute before it gets used in a configuration file for libxml2.
-            get_filename_component(_ABS_ZLIB_DIR "${ZLIB_DIR}" ABSOLUTE)
-        endif()
-    endif ()
-    if (EXISTS "${_ABS_ZLIB_DIR}")
-        file(APPEND ${EXPORT_DEPENDENCIES_FILE} "set(ZLIB_DIR \"${_ABS_ZLIB_DIR}\")\n")
-        # The find_dependency command doesn't appear to use CONFIG mode of find_package as a backup search mode.
-        # This means if we think we have found zlib for this library via configuration files then we force this 
-        # for the libxml2 find_dependency command.
-        set(_FIND_ZLIB_BY_CONFIG " CONFIG")
-    endif ()
     if(ZLIB_LINK_TYPE STREQUAL "PUBLIC")
-        file(APPEND ${EXPORT_DEPENDENCIES_FILE} "set(ZLIB_FIND_SYSTEM ${ZLIB_FIND_SYSTEM})\nfind_dependency(ZLIB ${ZLIB_VERSION}${_FIND_ZLIB_BY_CONFIG})\n")
+        file(APPEND ${EXPORT_DEPENDENCIES_FILE} "find_dependency(ZLIB ${ZLIB_VERSION} CONFIG)\nfind_dependency(ZLIB ${ZLIB_VERSION} REQUIRED)\n")
     endif ()
 endif()
 file(APPEND ${EXPORT_DEPENDENCIES_FILE} "\nset(_IMPORT_PREFIX \${${PROJECT_NAME}_IMPORT_PREFIX})\n")
