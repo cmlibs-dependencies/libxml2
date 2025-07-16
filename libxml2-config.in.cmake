@@ -19,7 +19,8 @@ if(LIBXML2_WITH_ZLIB)
   
   if (NOT ZLIB_FOUND)
     message(STATUS "Now trying finding with module mode.")
-    find_dependency(ZLIB)
+    # LibXml2 requires ZLIB if built with ZLIB, irrespective of what the calling find_package sets in this regard.
+    find_dependency(ZLIB REQUIRED)
   endif()
   list(APPEND LIBXML2_LIBRARIES zlib)
   list(APPEND LIBXML2_INTERFACE_LINK_LIBRARIES "zlib")
