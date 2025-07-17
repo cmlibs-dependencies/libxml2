@@ -1,5 +1,3 @@
-include(CMakeFindDependencyMacro)
-
 set(LIBXML2_SHARED @BUILD_SHARED_LIBS@)
 set(LIBXML2_WITH_ICONV @LIBXML2_WITH_ICONV@)
 set(LIBXML2_WITH_THREADS @LIBXML2_WITH_THREADS@)
@@ -7,7 +5,4 @@ set(LIBXML2_WITH_ICU @LIBXML2_WITH_ICU@)
 set(LIBXML2_WITH_LZMA @LIBXML2_WITH_LZMA@)
 set(LIBXML2_WITH_ZLIB @LIBXML2_WITH_ZLIB@)
 
-message(STATUS "Include the libxml2 exports file.")
 include("${CMAKE_CURRENT_LIST_DIR}/libxml2-exports.cmake")
-#set(LibXml2_FOUND TRUE)
-message(STATUS " ----> LibXml2 Found!")
